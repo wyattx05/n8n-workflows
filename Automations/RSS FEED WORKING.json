@@ -1,0 +1,263 @@
+## This automtions takes RSS feed from Bleeping Computer, filters out articles without content or title, summarizes them using a local LLM (Ollama), analyzes sentiment and urgency, and updates a Google Doc with the results. Stil working on making it run smoother
+
+{
+  "name": "RSS FEED WORKING",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2864,
+        -256
+      ],
+      "id": "603b3e1f-f31e-4249-a129-5fb7e3c61cef",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "url": "https://www.bleepingcomputer.com/feed/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        -2640,
+        -256
+      ],
+      "id": "b69ba5be-9d59-4de2-9399-02c57e06ec91",
+      "name": "RSS Read"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "filter-content",
+              "leftValue": "={{ $json.content }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "filter-title",
+              "leftValue": "={{ $json.title }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [
+        -2368,
+        -256
+      ],
+      "id": "52ef140f-8274-4947-8023-98fa97a85693",
+      "name": "Filter Valid Articles"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a cybersecurity news analyst. Summarize this article in a structured format:\n\n**Title:** {{ $json.title }}\n**Published:** {{ $json.pubDate }}\n**Link:** {{ $json.link }}\n\n**Summary:**\n• [3-5 bullet points covering key information]\n• [Focus on technical details, impact, and actionable insights]\n• [Include any recommendations or warnings if mentioned]\n\n**Article Content:**\n{{ $json.content }}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -2048,
+        -272
+      ],
+      "id": "6847247b-51c4-453c-b7e2-c8e24b66359c",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze the sentiment and urgency of this cybersecurity article. Respond with ONLY this exact format:\n\nSENTIMENT: [CRITICAL/HIGH/MEDIUM/LOW]\nURGENCY: [IMMEDIATE/URGENT/MODERATE/LOW]\nCATEGORY: [Data Breach/Malware/Vulnerability/Patch/Ransomware/Phishing/Other]\nKEYWORDS: [2-3 key security terms]\n\nArticle Title: {{ $json.title }}\nArticle Content: {{ $json.content }}\n\nBase your analysis on:\n- Severity of security impact\n- Whether immediate action is required\n- Scale of potential damage\n- Whether it affects critical infrastructure",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -2080,
+        -48
+      ],
+      "id": "bda2f0b0-d474-4db3-a6b4-d265c68c8e83",
+      "name": "Sentiment Analysis"
+    },
+    {
+      "parameters": {
+        "model": "llama3.1:8b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmOllama",
+      "typeVersion": 1,
+      "position": [
+        -2608,
+        144
+      ],
+      "id": "3c8f02d9-79cf-4fc9-8159-6115f5017eb3",
+      "name": "Ollama Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "8mJvnV9ioyx3JQsO",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -1696,
+        -160
+      ],
+      "id": "5e3b73dc-b050-48ec-8534-31e53a2113d9",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "1enbWvxS7X76MBhNgwdrrURMc8SUbE18MPgyCQv9NpRc",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $json.text }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        -1408,
+        -144
+      ],
+      "id": "c80dfeb0-fee4-4f05-9561-ea9f5e75757d",
+      "name": "Update a document",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "q1h39jD46xjfRajG",
+          "name": "Google Docs account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "RSS Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read": {
+      "main": [
+        [
+          {
+            "node": "Filter Valid Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Valid Articles": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Sentiment Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Sentiment Analysis",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sentiment Analysis": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Update a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0b1a00bd-413d-4132-b3fc-8a718d49ae9f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c0b12f2451776b8b361fb4c6eda537b4798873ea75a2aeccd73fedc9a454634b"
+  },
+  "id": "EyQv4Rt03fTqMSb6",
+  "tags": []
+}
